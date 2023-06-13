@@ -14,6 +14,7 @@ namespace Book_Rental_Service.Controllers
     {
         private readonly string connectionString;
 
+
         public BooksController(IConfiguration configuration) 
         {
             connectionString = configuration.GetConnectionString("DefaultConnection");
@@ -150,6 +151,82 @@ namespace Book_Rental_Service.Controllers
 
             return Ok();
         }
-    } 
+
+        [HttpPost("rent")]
+        public IActionResult RentBook([FromBody] RentBookModel rentBookModel)
+        {
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
+
+                // Check if the book is available for rent
+                string checkQuery = "SELECT Status FROM Books WHERE BookId = @BookId";
+                SqlCommand checkCommand = new SqlCommand(checkQuery, connection);
+                checkCommand.Parameters.AddWithValue("@BookId", rentBookModel.BookId);
+                var status = checkCommand.ExecuteScalar();
+
+                if (status == null || status.ToString() != "Available")
+                {
+                    return BadRequest("The requested book is not available for rent.");
+                }
+
+                // Update book status to "rented"
+                string updateQuery = "UPDATE Books SET Status = 'rented' WHERE BookId = @BookId";
+                SqlCommand updateCommand = new SqlCommand(updateQuery, connection);
+                updateCommand.Parameters.AddWithValue("@BookId", rentBookModel.BookId);
+                updateCommand.ExecuteNonQuery();
+
+                // Add rental record to history
+                string insertQuery = "INSERT INTO RentalHistory (BookId, BorrowerName, BorrowerEmail, BorrowerPhone, RentalDate) VALUES (@BookId, @BorrowerName, @BorrowerEmail, @BorrowerPhone, @RentalDate)";
+                SqlCommand insertCommand = new SqlCommand(insertQuery, connection);
+                
+                insertCommand.Parameters.AddWithValue("@BookId", rentBookModel.BookId);
+                insertCommand.Parameters.AddWithValue("@BorrowerName", rentBookModel.BorrowerName);
+                insertCommand.Parameters.AddWithValue("@BorrowerEmail", rentBookModel.BorrowerEmail);
+                insertCommand.Parameters.AddWithValue("@BorrowerPhone", rentBookModel.BorrowerPhone);
+                insertCommand.Parameters.AddWithValue("@RentalDate", DateTime.UtcNow);
+                insertCommand.ExecuteNonQuery();
+            }
+
+            return Ok();
+        }
+
+        // POST: api/books/return
+        [HttpPost("return")]
+        public IActionResult ReturnBook([FromBody] ReturnBookModel returnBookModel)
+        {
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
+
+                // Check if the book is rented
+                string checkQuery = "SELECT Status FROM Books WHERE BookId = @BookId";
+                SqlCommand checkCommand = new SqlCommand(checkQuery, connection);
+                checkCommand.Parameters.AddWithValue("@BookId", returnBookModel.BookId);
+                var status = checkCommand.ExecuteScalar();
+
+                if (status == null || status.ToString() != "rented")
+                {
+                    return BadRequest("The book is not currently rented.");
+                }
+
+                // Update book status to "available"
+                string updateQuery = "UPDATE Books SET Status = 'Available' WHERE BookId = @BookId";
+                SqlCommand updateCommand = new SqlCommand(updateQuery, connection);
+                updateCommand.Parameters.AddWithValue("@BookId", returnBookModel.BookId);
+                updateCommand.ExecuteNonQuery();
+
+                // Update return date in rental history
+                string updateHistoryQuery = "UPDATE RentalHistory SET ReturnDate = @ReturnDate WHERE BookId = @BookId AND ReturnDate IS NULL";
+                SqlCommand updateHistoryCommand = new SqlCommand(updateHistoryQuery, connection);
+                updateHistoryCommand.Parameters.AddWithValue("@BookId", returnBookModel.BookId);
+                updateHistoryCommand.Parameters.AddWithValue("@ReturnDate", DateTime.UtcNow);
+                updateHistoryCommand.ExecuteNonQuery();
+            }
+
+            return Ok();
+        }
+
+    }
 }
 
