@@ -1,5 +1,6 @@
 ﻿using Book_Rental_Service.Models;
-
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 using System.Data.SqlClient;
@@ -10,6 +11,8 @@ namespace Book_Rental_Service.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+    
     public class BooksController : ControllerBase
     {
         private readonly string connectionString;
@@ -20,6 +23,7 @@ namespace Book_Rental_Service.Controllers
             connectionString = configuration.GetConnectionString("DefaultConnection");
         }
         // GET: api/books
+        //[Authorize]
         [HttpGet]
         public IActionResult GetBooks()
         {
@@ -55,6 +59,7 @@ namespace Book_Rental_Service.Controllers
         }
 
         // GET: api/books/{id}
+        //   [Authorize]
         [HttpGet("{id}")]
         public IActionResult GetBook(int id)
         {
@@ -92,6 +97,7 @@ namespace Book_Rental_Service.Controllers
         }
 
         // POST: api/books
+        
         [HttpPost]
         public IActionResult AddBook([FromBody] Book book)
         {
@@ -136,6 +142,7 @@ namespace Book_Rental_Service.Controllers
         }
 
         // DELETE: api/books/{id}
+        
         [HttpDelete("{id}")]
         public IActionResult DeleteBook(int id)
         {
@@ -143,15 +150,23 @@ namespace Book_Rental_Service.Controllers
             {
                 connection.Open();
 
-                string query = "DELETE FROM Books WHERE BookId = @BookId";
-                SqlCommand command = new SqlCommand(query, connection);
-                command.Parameters.AddWithValue("@BookId", id);
-                command.ExecuteNonQuery();
+                var deleteRentalquery = "DELETE FROM RentalHistory WHERE BookId = @BookId";
+                SqlCommand DeleteRentalcommand = new SqlCommand(deleteRentalquery, connection);
+                DeleteRentalcommand.Parameters.AddWithValue("@BookId", id);
+                DeleteRentalcommand.ExecuteNonQuery();
+
+                var deleteBookquery = "DELETE FROM Books WHERE BookId = @BookId";
+                SqlCommand DeleteBookcommand = new SqlCommand(deleteBookquery, connection);
+                DeleteBookcommand.Parameters.AddWithValue("@BookId", id);
+                DeleteBookcommand.ExecuteNonQuery();
+
+
             }
 
             return Ok();
         }
 
+        
         [HttpPost("rent")]
         public IActionResult RentBook([FromBody] RentBookModel rentBookModel)
         {
@@ -230,3 +245,4 @@ namespace Book_Rental_Service.Controllers
     }
 }
 
+ 
