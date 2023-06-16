@@ -61,7 +61,7 @@ namespace Book_Rental_Service.Controllers
         // GET: api/books/{id}
         //   [Authorize]
         [HttpGet("{id}")]
-        public IActionResult GetBook(int id)
+        public IActionResult GetBook(int id)  
         {
             Book book = null;
 
